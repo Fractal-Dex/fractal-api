@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import unittest
-
 from .helpers import AppTestCase
 
 
@@ -18,7 +16,6 @@ class AccountsTestCase(AppTestCase):
         self.assertEqual(type(result.json['data']), list)
         self.assertEqual(len(result.json['data']), 0)
 
-    @unittest.expectedFailure
     def test_get(self):
         result = self.simulate_get(
             '/api/v1/accounts'

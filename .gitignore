@@ -1,0 +1,8 @@
+app/__pycache__/
+app/assets/__pycache__/
+app/configuration/__pycache__/
+app/gauges/__pycache__
+app/pairs/__pycache__
+app/venfts/__pycache__
+app/settings/__pycache__/
+app/rewards/__pycache__/

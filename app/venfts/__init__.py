@@ -10,7 +10,7 @@ from app.pairs import Gauge, Pair, Token
 from app.rewards import BribeReward, EmissionReward, FeeReward
 from app.misc import JSONEncoder
 from app.settings import (
-    CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER
+    CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER, reset_multicall_pool_executor
 )
 
 
@@ -25,6 +25,7 @@ class Accounts(object):
         to_meta = []
 
         venfts = VeNFT.from_chain(address)
+        reset_multicall_pool_executor()
 
         default_token = Token.find(DEFAULT_TOKEN_ADDRESS)
         emissions = EmissionReward.query(

@@ -5,7 +5,7 @@ from web3.constants import ADDRESS_ZERO
 
 from app.settings import (
     LOGGER, CACHE, VOTER_ADDRESS,
-    DEFAULT_TOKEN_ADDRESS, WRAPPED_BRIBE_FACTORY_ADDRESS, VE_ADDRESS
+    DEFAULT_TOKEN_ADDRESS, WRAPPED_BRIBE_FACTORY_ADDRESS
 )
 from app.assets import Token
 
@@ -16,7 +16,6 @@ class Gauge(Model):
 
     DEFAULT_DECIMALS = 18
     DAY_IN_SECONDS = 24 * 60 * 60
-    CACHER = CACHE.cache()
 
     address = TextField(primary_key=True)
     decimals = IntegerField(default=DEFAULT_DECIMALS)
@@ -29,8 +28,6 @@ class Gauge(Model):
 
     # Bribes in the form of `token_address => token_amount`...
     rewards = HashField()
-    # Pair Fees (Internal)
-    fees = FloatField(default=0.0)
     # Total Bribes Value
     tbv = FloatField(default=0.0)
     # Voting APR
@@ -119,19 +116,6 @@ class Gauge(Model):
         return gauge
 
     @classmethod
-    @CACHER.cached(timeout=(1 * DAY_IN_SECONDS))
-    def rebase_apr(cls):
-        minter_address = Call(VOTER_ADDRESS, 'minter()(address)')()
-        weekly = Call(minter_address, 'weekly_emission()(uint256)')()
-        supply = Call(VE_ADDRESS, 'supply()(uint256)')()
-        growth = Call(
-            minter_address,
-            ['calculate_growth(uint256)(uint256)', weekly]
-        )()
-
-        return ((growth * 52) / supply) * 100
-
-    @classmethod
     def _update_apr(cls, gauge):
         """Updates the voting apr for the gauge."""
         # Avoid circular import...
@@ -147,11 +131,9 @@ class Gauge(Model):
         token = Token.find(DEFAULT_TOKEN_ADDRESS)
         votes = votes / 10**token.decimals
 
-        gauge.apr = cls.rebase_apr()
-
         if token.price and votes * token.price > 0:
             gauge.votes = votes
-            gauge.apr += ((gauge.tbv * 52) / (votes * token.price)) * 100
+            gauge.apr = ((gauge.tbv * 52) / (votes * token.price)) * 100
             gauge.save()
 
     @classmethod
@@ -239,7 +221,6 @@ class Gauge(Model):
 
             if token.price:
                 gauge.tbv += fee / 10**token.decimals * token.price
-                gauge.fees += fee / 10**token.decimals * token.price
 
             LOGGER.debug(
                 'Fetched %s:%s reward %s:%s.',
