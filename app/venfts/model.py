@@ -3,17 +3,17 @@
 from datetime import datetime
 
 from multicall import Call, Multicall
-from walrus import Model, TextField, IntegerField, DateTimeField
+from walrus import DateTimeField, IntegerField, Model, TextField
 
-from app.rewards import BribeReward, EmissionReward, FeeReward
 from app.pairs import Gauge, Pair
-from app.settings import (
-    LOGGER, CACHE, VE_ADDRESS, VOTER_ADDRESS, REWARDS_DIST_ADDRESS
-)
+from app.rewards import BribeReward, EmissionReward, FeeReward
+from app.settings import (CACHE, LOGGER, REWARDS_DIST_ADDRESS, VE_ADDRESS,
+                          VOTER_ADDRESS)
 
 
 class NullableDateTimeField(DateTimeField):
     """Patched datetime field to support null values."""
+
     def python_value(self, value):
         if not value or float(value) == 0:
             return None
@@ -23,6 +23,7 @@ class NullableDateTimeField(DateTimeField):
 
 class VeNFT(Model):
     """veNFT model."""
+
     __database__ = CACHE
 
     token_id = IntegerField(primary_key=True)
@@ -58,8 +59,7 @@ class VeNFT(Model):
 
             for token_id in token_ids:
                 fee_calls.extend(
-                    FeeReward.prepare_chain_calls(pair, gauge, token_id)
-                )
+                    FeeReward.prepare_chain_calls(pair, gauge, token_id))
                 bribe_calls.extend(
                     BribeReward.prepare_chain_calls(pair, gauge, token_id)
                 )
@@ -71,17 +71,16 @@ class VeNFT(Model):
         tdelta = datetime.utcnow() - t0
 
         LOGGER.debug(
-            'Fetched data for %s %ss in %s.',
-            len(token_ids),
-            cls.__name__,
-            tdelta
+            "Fetched data for %s %ss in %s.", len(
+                token_ids), cls.__name__, tdelta
         )
 
         for token_id in token_ids:
-            token_prefix = '|'.join([cls.__name__, str(token_id), ''])
+            token_prefix = "|".join([cls.__name__, str(token_id), ""])
             vdata = {
                 k.removeprefix(token_prefix): v
-                for (k, v) in multi_data.items() if token_prefix in k
+                for (k, v) in multi_data.items()
+                if token_prefix in k
             }
 
             venfts.append(cls.from_chain_calls(address, token_id, vdata))
@@ -95,37 +94,37 @@ class VeNFT(Model):
     @classmethod
     def prepare_chain_calls(cls, token_id):
         """Returns prepared vote-escrow and voter calls for a token ID."""
-        key_prefix = '|'.join([cls.__name__, str(token_id)])
+        key_prefix = "|".join([cls.__name__, str(token_id)])
 
         return [
             Call(
                 VE_ADDRESS,
-                ['decimals()(uint256)'],
-                [['%s|decimals' % key_prefix, None]]
+                ["decimals()(uint256)"],
+                [["%s|decimals" % key_prefix, None]],
             ),
             Call(
                 VE_ADDRESS,
-                ['balanceOfNFT(uint256)(uint256)', token_id],
-                [['%s|voting_amount' % key_prefix, str]]
+                ["balanceOfNFT(uint256)(uint256)", token_id],
+                [["%s|voting_amount" % key_prefix, str]],
             ),
             Call(
                 VE_ADDRESS,
-                ['locked(uint256)(int128,uint256)', token_id],
+                ["locked(uint256)(int128,uint256)", token_id],
                 [
-                    ['%s|amount' % key_prefix, str],
-                    ['%s|lock_ends_at' % key_prefix, None]
-                ]
+                    ["%s|amount" % key_prefix, str],
+                    ["%s|lock_ends_at" % key_prefix, None],
+                ],
             ),
             Call(
                 VOTER_ADDRESS,
-                ['lastVoted(uint256)(uint256)', token_id],
-                [['%s|voted_at' % key_prefix, None]]
+                ["lastVoted(uint256)(uint256)", token_id],
+                [["%s|voted_at" % key_prefix, None]],
             ),
             Call(
                 REWARDS_DIST_ADDRESS,
-                ['claimable(uint256)(uint256)', token_id],
-                [['%s|rebase_amount' % key_prefix, str]]
-            )
+                ["claimable(uint256)(uint256)", token_id],
+                [["%s|rebase_amount" % key_prefix, str]],
+            ),
         ]
 
     @classmethod
@@ -134,23 +133,23 @@ class VeNFT(Model):
         # Cleanup old data...
         cls.query_delete(cls.token_id == token_id)
 
-        data['token_id'] = token_id
-        data['account_address'] = account_address.lower()
+        data["token_id"] = token_id
+        data["account_address"] = account_address.lower()
 
-        if data['voted_at'] != 0:
-            data['voted_at'] = datetime.utcfromtimestamp(data['voted_at'])
+        if data["voted_at"] != 0:
+            data["voted_at"] = datetime.utcfromtimestamp(data["voted_at"])
         else:
-            data['voted_at'] = None
+            data["voted_at"] = None
 
-        if data['lock_ends_at'] != 0:
-            data['lock_ends_at'] = \
-                datetime.utcfromtimestamp(data['lock_ends_at'])
+        if data["lock_ends_at"] != 0:
+            data["lock_ends_at"] = datetime.utcfromtimestamp(
+                data["lock_ends_at"])
         else:
-            data['lock_ends_at'] = None
+            data["lock_ends_at"] = None
 
         venft = cls.create(**data)
 
-        LOGGER.debug('Synced %s:%s.', cls.__name__, token_id)
+        LOGGER.debug("Synced %s:%s.", cls.__name__, token_id)
 
         return venft
 
@@ -158,8 +157,7 @@ class VeNFT(Model):
     def _fetch_token_ids(cls, address):
         """Returns account address veNFT ids."""
         tokens_count = Call(
-            VE_ADDRESS, ['balanceOf(address)(uint256)', address]
-        )()
+            VE_ADDRESS, ["balanceOf(address)(uint256)", address])()
 
         if tokens_count == 0:
             return []
@@ -169,11 +167,9 @@ class VeNFT(Model):
         for idx in range(0, tokens_count):
             call = Call(
                 VE_ADDRESS,
-                [
-                    'tokenOfOwnerByIndex(address,uint256)(uint256)',
-                    address, idx
-                ],
-                [['venft_idx_%s' % idx, None]]
+                ["tokenOfOwnerByIndex(address,uint256)(uint256)",
+                 address, idx],
+                [["venft_idx_%s" % idx, None]],
             )
             calls.append(call)
 

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import json
 from datetime import timedelta
 
 import falcon
@@ -10,10 +9,10 @@ from app.settings import (CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER,
                           TREASURY_ADDRESS, VE_ADDRESS)
 
 
-class Supply(object):
+class CirculatingSupply(object):
     """Handles supply info"""
 
-    CACHE_KEY = "supply:json"
+    CACHE_KEY = "circulating-supply:string"
     CACHE_TIME = timedelta(minutes=5)
 
     @classmethod
@@ -56,19 +55,14 @@ class Supply(object):
         data["circulating_supply"] = \
             data["total_supply"] - data["locked_supply"]
 
-        data["percentage_locked"] = \
-            data["locked_supply"] / data["total_supply"] * 100
-
-        supply_data = json.dumps(dict(data=data))
-
-        CACHE.setex(cls.CACHE_KEY, cls.CACHE_TIME, supply_data)
+        CACHE.setex(cls.CACHE_KEY, cls.CACHE_TIME, data["circulating_supply"])
         LOGGER.debug("Cache updated for %s.", cls.CACHE_KEY)
 
-        return supply_data
+        return data["circulating_supply"]
 
     def on_get(self, req, resp):
         """Caches and returns our supply info"""
-        supply_data = CACHE.get(self.CACHE_KEY) or Supply.recache()
+        supply_data = CACHE.get(self.CACHE_KEY) or CirculatingSupply.recache()
 
         resp.text = supply_data
         resp.status = falcon.HTTP_200

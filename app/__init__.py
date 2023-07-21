@@ -5,4 +5,4 @@ import configparser
 parser = configparser.ConfigParser()
 parser.read("pyproject.toml")
 
-__version__ = (parser["tool.poetry"]['version'].strip("\"'"),)
+__version__ = tuple(parser["tool.poetry"]["version"].strip("v\"'").split("."))

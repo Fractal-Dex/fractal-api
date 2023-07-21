@@ -1,0 +1,5 @@
+# Avoid conflict between local poetry config and docker's
+poetry.toml
+
+# Do not copy .venv
+.venv

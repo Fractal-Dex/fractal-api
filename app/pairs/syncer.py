@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 
+import time
 from multiprocessing import Process
 from multiprocessing.pool import ThreadPool
-import time
-import sys
 
-from app.pairs import Pairs, Pair
 from app.assets import Assets, Token
-from app.settings import (
-    LOGGER, SYNC_WAIT_SECONDS, reset_multicall_pool_executor
-)
+from app.pairs import Pair, Pairs
+from app.settings import (LOGGER, SYNC_WAIT_SECONDS,
+                          reset_multicall_pool_executor)
 
 
-def sync(force_shutdown=False):
+def sync():
     """Syncs """
-    LOGGER.info('Syncing pairs ...')
+    LOGGER.info("Syncing pairs ...")
     t0 = time.time()
 
     Token.from_tokenlists()
@@ -23,9 +21,8 @@ def sync(force_shutdown=False):
         addresses = Pair.chain_addresses()
 
         LOGGER.debug(
-            'Syncing %s pairs using %s threads...',
-            len(addresses),
-            pool._processes
+            "Syncing %s pairs using %s threads...", len(
+                addresses), pool._processes
         )
 
         pool.map(Pair.from_chain, addresses)
@@ -36,25 +33,21 @@ def sync(force_shutdown=False):
     Pairs.recache()
     Assets.recache()
 
-    LOGGER.info('Syncing pairs done in %s seconds.', time.time() - t0)
+    LOGGER.info("Syncing pairs done in %s seconds.", time.time() - t0)
 
     reset_multicall_pool_executor()
 
 
 def sync_forever():
-    if SYNC_WAIT_SECONDS < 1:
-        LOGGER.info('Syncing is disabled!')
-        sys.exit(0)
-
-    LOGGER.info('Syncing every %s seconds ...', SYNC_WAIT_SECONDS)
+    LOGGER.info("Syncing every %s seconds ...", SYNC_WAIT_SECONDS)
 
     while True:
-        sync_proc = Process(target=sync, args=(False,))
+        sync_proc = Process(target=sync)
         try:
             sync_proc.start()
             sync_proc.join()
         except KeyboardInterrupt:
-            LOGGER.info('Syncing stopped!')
+            LOGGER.info("Syncing stopped!")
             break
         except Exception as error:
             LOGGER.error(error)
@@ -67,5 +60,8 @@ def sync_forever():
         time.sleep(SYNC_WAIT_SECONDS)
 
 
-if __name__ == '__main__':
-    sync_forever()
+if __name__ == "__main__":
+    if SYNC_WAIT_SECONDS < 1:
+        sync()
+    else:
+        sync_forever()

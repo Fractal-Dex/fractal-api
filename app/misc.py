@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import json
 import datetime
 import decimal
+import json
 import uuid
 
 
 class JSONEncoder(json.JSONEncoder):
     """Custom JSON encoder for decimals."""
+
     def default(self, obj):
         if isinstance(obj, decimal.Decimal):
             return float(obj)
