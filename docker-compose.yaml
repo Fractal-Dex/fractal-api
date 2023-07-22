@@ -13,7 +13,7 @@ services:
       context: .
       target: prod
     ports:
-      - "${PORT}:8000"
+      - "${PORT}:${PORT}"
     volumes:
       - ./:/app
     networks:
