@@ -14,7 +14,7 @@ from app.pairs import Pairs
 from app.settings import (CORS_ALLOWED_DOMAINS, LOGGER, PORT,
                           honeybadger_handler)
 from app.supply import Supply
-from app.frac import VaraPrice
+from app.frac import FracPrice
 from app.venfts import Accounts
 from falcon_compression.middleware import CompressionMiddleware
 from requestlogger import ApacheFormatter, WSGILogger
@@ -43,7 +43,7 @@ app.add_route("/api/v1/configuration", Configuration())
 app.add_route("/api/v1/pairs", Pairs())
 app.add_route("/api/v1/supply", Supply())
 app.add_route("/api/v1/circulating-supply", CirculatingSupply())
-app.add_route("/api/v1/vara-price", VaraPrice())
+app.add_route("/api/v1/frac-price", FracPrice())
 wsgi = WSGILogger(app, [StreamHandler(sys.stdout)], ApacheFormatter())
 
 

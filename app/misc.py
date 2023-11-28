@@ -26,8 +26,6 @@ class ModelUteis:
         if token.decimals is None:
             token.decimals = 18
 
-        token.save()
-
     @staticmethod
     def validate_token(decimals):
         """

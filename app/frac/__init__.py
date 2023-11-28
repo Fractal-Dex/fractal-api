@@ -5,19 +5,19 @@ from datetime import timedelta
 import falcon
 from app.assets import Token
 from app.settings import (CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER,
-                          VARA_CACHE_EXPIRATION)
+                          FRAC_CACHE_EXPIRATION)
 
 
-class VaraPrice(object):
+class FracPrice(object):
     """
-    Handles the retrieval and caching of the Vara price.
+    Handles the retrieval and caching of the Frac price.
 
-    The class manages the caching and retrieval of the Vara price information.
+    The class manages the caching and retrieval of the Frac price information.
     This endpoint provides a quick way to fetch the up-to-date
-    Vara token price.
+    Frac token price.
     """
 
-    CACHE_KEY = "vara:json"
+    CACHE_KEY = "frac:json"
     CACHE_TIME = timedelta(minutes=5)
 
     @classmethod
@@ -27,9 +27,9 @@ class VaraPrice(object):
     @classmethod
     def recache(cls):
         """
-        Updates and returns the Vara token price.
+        Updates and returns the Frac token price.
 
-        This method fetches the fresh price of the Vara token from the database
+        This method fetches the fresh price of the Frac token from the database
         and caches it for quick retrieval in subsequent requests.
         """
 
@@ -39,10 +39,10 @@ class VaraPrice(object):
             if token:
 
                 LOGGER.debug("Token: %s", token)
-                LOGGER.debug("VARA price: %s", token.price)
+                LOGGER.debug("Frac price: %s", token.price)
 
                 CACHE.set(cls.CACHE_KEY, str(token.price))
-                CACHE.expire(cls.CACHE_KEY, VARA_CACHE_EXPIRATION)
+                CACHE.expire(cls.CACHE_KEY, FRAC_CACHE_EXPIRATION)
 
                 LOGGER.debug("Cache updated for %s.", cls.CACHE_KEY)
                 return str(token.price)
@@ -62,10 +62,10 @@ class VaraPrice(object):
         This method gets the Vara price from the cache. If the price isn't in
         the cache, it calls the recache() method to get fresh data.
         """
-        vara_price = CACHE.get(self.CACHE_KEY) or VaraPrice.recache()
+        frac_price = CACHE.get(self.CACHE_KEY) or FracPrice.recache()
 
-        if vara_price:
-            resp.text = vara_price
+        if frac_price:
+            resp.text = frac_price
             resp.status = falcon.HTTP_200
         else:
             LOGGER.warning("Vara price not found in cache!")
