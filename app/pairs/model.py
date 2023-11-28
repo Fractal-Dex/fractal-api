@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 
-import math
-
-from multicall import Call, Multicall
-from walrus import BooleanField, FloatField, IntegerField, Model, TextField
-from web3.constants import ADDRESS_ZERO
+import time
 
 from app.assets import Token
 from app.gauges import Gauge
 from app.settings import (CACHE, DEFAULT_TOKEN_ADDRESS, FACTORY_ADDRESS,
-                          LOGGER, VOTER_ADDRESS)
+                          LOGGER, RETRY_COUNT, RETRY_DELAY, VOTER_ADDRESS)
+from multicall import Call, Multicall
+from walrus import BooleanField, FloatField, IntegerField, Model, TextField
+from web3.constants import ADDRESS_ZERO
 
 
 class Pair(Model):
+
     """Liquidity pool pairs model."""
 
     __database__ = CACHE
@@ -34,48 +34,50 @@ class Pair(Model):
     isStable = BooleanField()
     totalSupply = FloatField()
 
-    def token_price(self):
-        """LP token price.
+    def syncup_gauge(self, retry_count=RETRY_COUNT, retry_delay=RETRY_DELAY):
+        """Fetches and updates the gauge data associated
+        with this pair from the blockchain."""
 
-        Uses: https://blog.alphaventuredao.io/fair-lp-token-pricing/
-        """
-        token0_price = Token.find(self.token0).chain_price_in_stables()
-        token1_price = Token.find(self.token1).chain_price_in_stables()
-
-        if token0_price == 0 or token1_price == 0:
-            return 0
-
-        sqrtK = math.sqrt(self.reserve0 * self.reserve1)
-        sqrtP = math.sqrt(token0_price * token1_price)
-
-        return 2 * ((sqrtK * sqrtP) / self.totalSupply)
-
-    def syncup_gauge(self):
-        """Fetches own gauges data from chain."""
         if self.gauge_address in (ADDRESS_ZERO, None):
             return
 
-        gauge = Gauge.from_chain(self.gauge_address)
-        self._update_apr(gauge)
+        gauge_address_str = (
+            self.gauge_address.decode("utf-8")
+            if isinstance(self.gauge_address, bytes)
+            else self.gauge_address
+        )
 
-        return gauge
+        for _ in range(retry_count):
+            try:
+                gauge = Gauge.from_chain(gauge_address_str)
+                self._update_apr(gauge)
+                return gauge
+            except Exception as e:
+                LOGGER.error(
+                    f"Error fetching gauge for address {self.address}: {e}"
+                )
+                LOGGER.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+
+        return None
 
     def _update_apr(self, gauge):
-        """Calculates the pool TVL"""
+
         if self.tvl == 0:
             return
 
         token = Token.find(DEFAULT_TOKEN_ADDRESS)
-        token_price = token.chain_price_in_stables()
 
-        daily_apr = (gauge.reward * token_price) / self.tvl * 100
+        if token is not None and gauge is not None:
+            token_price = token.price
+            daily_apr = (gauge.reward * token_price) / self.tvl * 100
+            self.apr = daily_apr * 365
 
-        self.apr = daily_apr * 365
         self.save()
 
     @classmethod
     def find(cls, address):
-        """Loads a token from cache, of from chain if not found."""
+
         if address is None:
             return None
 
@@ -86,14 +88,15 @@ class Pair(Model):
 
     @classmethod
     def chain_addresses(cls):
-        """Fetches pairs/pools from chain."""
+
         pairs_count = Call(FACTORY_ADDRESS, "allPairsLength()(uint256)")()
 
         pairs_multi = Multicall(
             [
                 Call(
-                    FACTORY_ADDRESS, ["allPairs(uint256)(address)", idx], [
-                        [idx, None]]
+                    FACTORY_ADDRESS,
+                    ["allPairs(uint256)(address)", idx],
+                    [[idx, None]],
                 )
                 for idx in range(0, pairs_count)
             ]
@@ -103,75 +106,148 @@ class Pair(Model):
 
     @classmethod
     def from_chain(cls, address):
-        """Fetches pair/pool data from chain."""
-        address = address.lower()
 
-        pair_multi = Multicall(
-            [
-                Call(
-                    address,
-                    "getReserves()(uint256,uint256)",
-                    [["reserve0", None], ["reserve1", None]],
-                ),
-                Call(address, "token0()(address)", [["token0_address", None]]),
-                Call(address, "token1()(address)", [["token1_address", None]]),
-                Call(address, "totalSupply()(uint256)",
-                     [["total_supply", None]]),
-                Call(address, "symbol()(string)", [["symbol", None]]),
-                Call(address, "decimals()(uint8)", [["decimals", None]]),
-                Call(address, "stable()(bool)", [["stable", None]]),
-                Call(
-                    VOTER_ADDRESS,
-                    ["gauges(address)(address)", address],
-                    [["gauge_address", None]],
-                ),
-            ]
-        )
+        try:
+            address = address.lower()
 
-        data = pair_multi()
+            pair_multi = Multicall(
+                [
+                    Call(
+                        address,
+                        "getReserves()(uint256,uint256)",
+                        [["reserve0", None], ["reserve1", None]],
+                    ),
+                    Call(
+                        address,
+                        "token0()(address)",
+                        [["token0_address", None]],
+                    ),
+                    Call(
+                        address,
+                        "token1()(address)",
+                        [["token1_address", None]],
+                    ),
+                    Call(
+                        address,
+                        "totalSupply()(uint256)",
+                        [["total_supply", None]],
+                    ),
+                    Call(address, "symbol()(string)", [["symbol", None]]),
+                    Call(address, "decimals()(uint8)", [["decimals", None]]),
+                    Call(address, "stable()(bool)", [["stable", None]]),
+                    Call(
+                        VOTER_ADDRESS,
+                        ["gauges(address)(address)", address],
+                        [["gauge_address", None]],
+                    ),
+                ]
+            )
 
-        data["address"] = address
-        data["total_supply"] = data["total_supply"] / (10 ** data["decimals"])
+            data = pair_multi()
+            LOGGER.debug(
+                "Loading %s:(%s) %s.", cls.__name__, data["symbol"], address
+            )
 
-        token0 = Token.find(data["token0_address"])
-        token1 = Token.find(data["token1_address"])
+            data["address"] = address
 
-        data["reserve0"] = data["reserve0"] / (10 ** token0.decimals)
-        data["reserve1"] = data["reserve1"] / (10 ** token1.decimals)
+            data["total_supply"] = data["total_supply"] / (
+                10 ** data["decimals"]
+            )
 
-        if data.get("gauge_address") in (ADDRESS_ZERO, None):
-            data["gauge_address"] = None
-        else:
-            data["gauge_address"] = data["gauge_address"].lower()
+            token0 = Token.find(data["token0_address"])
+            token1 = Token.find(data["token1_address"])
 
-        data["tvl"] = cls._tvl(data, token0, token1)
+            if token0 and token1:
+                data["reserve0"] = data["reserve0"] / (10**token0.decimals)
+                data["reserve1"] = data["reserve1"] / (10**token1.decimals)
 
-        # TODO: Remove once no longer needed...
-        data["isStable"] = data["stable"]
-        data["totalSupply"] = data["total_supply"]
+            if data.get("gauge_address") in (ADDRESS_ZERO, None):
+                data["gauge_address"] = None
+            else:
+                data["gauge_address"] = data["gauge_address"].lower()
 
-        # Cleanup old data...
-        cls.query_delete(cls.address == address.lower())
+            data["tvl"] = cls._tvl(data, token0, token1)
 
-        pair = cls.create(**data)
-        LOGGER.debug("Fetched %s:%s.", cls.__name__, pair.address)
+            data["isStable"] = data["stable"]
+            data["totalSupply"] = data["total_supply"]
 
-        pair.syncup_gauge()
+            cls.query_delete(cls.address == address.lower())
 
-        return pair
+            pair = cls.create(**data)
+            LOGGER.debug(
+                "Fetched %s:(%s) %s.", cls.__name__, pair.symbol, pair.address
+            )
+
+            pair.syncup_gauge()
+
+            return pair
+
+        except Exception as e:
+            LOGGER.error(f"Error fetching pair for address {address}: {e}")
+            return None
 
     @classmethod
     def _tvl(cls, pool_data, token0, token1):
-        """Returns the TVL of the pool."""
-        tvl = 0
 
-        if token0.price and token0.price != 0:
-            tvl += pool_data["reserve0"] * token0.price
+        try:
+            tvl = 0
 
-        if token1.price and token1.price != 0:
-            tvl += pool_data["reserve1"] * token1.price
+            if token0 is not None and token0.price and token0.price != 0:
+                tvl += pool_data["reserve0"] * token0.price
 
-        if tvl != 0 and (token0.price == 0 or token1.price == 0):
-            tvl = tvl * 2
+            if token1 is not None and token1.price and token1.price != 0:
+                tvl += pool_data["reserve1"] * token1.price
 
-        return tvl
+            if (
+                token0 is not None
+                and token1 is not None
+                and tvl != 0
+                and (token0.price == 0 or token1.price == 0)
+            ):
+                LOGGER.debug(
+                    "Pool %s:(%s) has a price of 0 for one of its tokens.",
+                    cls.__name__,
+                    pool_data["symbol"],
+                )
+                tvl = tvl * 2
+            LOGGER.debug(
+                "Pool %s:(%s) has a TVL of %s.",
+                cls.__name__,
+                pool_data["symbol"],
+                tvl,
+            )
+            return tvl
+
+        except Exception as e:
+            LOGGER.error(f"Error TVL for pool {pool_data.get('symbol')}: {e}")
+            return 0
+
+    def balance_of(self, token_address):
+        try:
+            balance_call = Call(
+                self.address, "balanceOf(address)(uint256)", [token_address]
+            )
+            multicall = Multicall([balance_call])
+            result = multicall()
+            balance = result.get(balance_call)
+            return balance
+
+        except Exception as e:
+            LOGGER.error(
+                f"Error fetching balance {token_address} {self.address}: {e}"
+            )
+            return 0
+
+    def total_liquidity(self):
+        try:
+            liquidity_call = Call(self.address, "totalSupply()(uint256)")
+            multicall = Multicall([liquidity_call])
+            result = multicall()
+            liquidity = result.get(liquidity_call)
+            return liquidity
+
+        except Exception as e:
+            LOGGER.error(
+                f"Error fetching total liquidity for pair {self.address}: {e}"
+            )
+            return 0

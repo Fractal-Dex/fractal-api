@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from falcon import testing
-
+from app import syncer
 from app.app import app
-from app.pairs import syncer
+from falcon import testing
 
 # Sync the initial data...
 syncer.sync()

@@ -4,10 +4,9 @@ import json
 from datetime import timedelta
 
 import falcon
-from multicall import Call, Multicall
-
 from app.settings import (CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER,
                           TREASURY_ADDRESS, VE_ADDRESS)
+from multicall import Call, Multicall
 
 
 class Supply(object):
@@ -25,8 +24,11 @@ class Supply(object):
                     "decimals()(uint256)",
                     [["token_decimals", None]],
                 ),
-                Call(VE_ADDRESS, "decimals()(uint256)",
-                     [["lock_decimals", None]]),
+                Call(
+                    VE_ADDRESS,
+                    "decimals()(uint256)",
+                    [["lock_decimals", None]],
+                ),
                 Call(
                     DEFAULT_TOKEN_ADDRESS,
                     "totalSupply()(uint256)",
@@ -47,17 +49,20 @@ class Supply(object):
 
         data = supply_multicall()
 
-        data["total_supply"] = data["raw_total_supply"] / \
-            10 ** data["token_decimals"]
+        data["total_supply"] = (
+            data["raw_total_supply"] / 10 ** data["token_decimals"]
+        )
         data["locked_supply"] = (
             data["raw_locked_supply"] / 10 ** data["lock_decimals"]
             + data["raw_treasury_supply"] / 10 ** data["token_decimals"]
         )
-        data["circulating_supply"] = \
+        data["circulating_supply"] = (
             data["total_supply"] - data["locked_supply"]
+        )
 
-        data["percentage_locked"] = \
+        data["percentage_locked"] = (
             data["locked_supply"] / data["total_supply"] * 100
+        )
 
         supply_data = json.dumps(dict(data=data))
 

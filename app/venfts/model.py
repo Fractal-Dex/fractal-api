@@ -2,13 +2,12 @@
 
 from datetime import datetime
 
-from multicall import Call, Multicall
-from walrus import DateTimeField, IntegerField, Model, TextField
-
 from app.pairs import Gauge, Pair
 from app.rewards import BribeReward, EmissionReward, FeeReward
 from app.settings import (CACHE, LOGGER, REWARDS_DIST_ADDRESS, VE_ADDRESS,
                           VOTER_ADDRESS)
+from multicall import Call, Multicall
+from walrus import DateTimeField, IntegerField, Model, TextField
 
 
 class NullableDateTimeField(DateTimeField):
@@ -59,7 +58,8 @@ class VeNFT(Model):
 
             for token_id in token_ids:
                 fee_calls.extend(
-                    FeeReward.prepare_chain_calls(pair, gauge, token_id))
+                    FeeReward.prepare_chain_calls(pair, gauge, token_id)
+                )
                 bribe_calls.extend(
                     BribeReward.prepare_chain_calls(pair, gauge, token_id)
                 )
@@ -71,8 +71,10 @@ class VeNFT(Model):
         tdelta = datetime.utcnow() - t0
 
         LOGGER.debug(
-            "Fetched data for %s %ss in %s.", len(
-                token_ids), cls.__name__, tdelta
+            "Fetched data for %s %ss in %s.",
+            len(token_ids),
+            cls.__name__,
+            tdelta,
         )
 
         for token_id in token_ids:
@@ -143,7 +145,8 @@ class VeNFT(Model):
 
         if data["lock_ends_at"] != 0:
             data["lock_ends_at"] = datetime.utcfromtimestamp(
-                data["lock_ends_at"])
+                data["lock_ends_at"]
+            )
         else:
             data["lock_ends_at"] = None
 
@@ -157,7 +160,8 @@ class VeNFT(Model):
     def _fetch_token_ids(cls, address):
         """Returns account address veNFT ids."""
         tokens_count = Call(
-            VE_ADDRESS, ["balanceOf(address)(uint256)", address])()
+            VE_ADDRESS, ["balanceOf(address)(uint256)", address]
+        )()
 
         if tokens_count == 0:
             return []
@@ -167,8 +171,11 @@ class VeNFT(Model):
         for idx in range(0, tokens_count):
             call = Call(
                 VE_ADDRESS,
-                ["tokenOfOwnerByIndex(address,uint256)(uint256)",
-                 address, idx],
+                [
+                    "tokenOfOwnerByIndex(address,uint256)(uint256)",
+                    address,
+                    idx,
+                ],
                 [["venft_idx_%s" % idx, None]],
             )
             calls.append(call)

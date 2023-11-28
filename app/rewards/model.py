@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
+from app.settings import CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER
 from multicall import Call
 from walrus import IntegerField, Model, TextField, UUIDField
-
-from app.settings import CACHE, DEFAULT_TOKEN_ADDRESS, LOGGER
 
 
 class Reward(Model):
@@ -102,14 +101,20 @@ class FeeReward(Reward):
         return [
             Call(
                 gauge.fees_address,
-                ["earned(address,uint256)(uint256)",
-                 pair.token0_address, token_id],
+                [
+                    "earned(address,uint256)(uint256)",
+                    pair.token0_address,
+                    token_id,
+                ],
                 [[fee0_name, None]],
             ),
             Call(
                 gauge.fees_address,
-                ["earned(address,uint256)(uint256)",
-                 pair.token1_address, token_id],
+                [
+                    "earned(address,uint256)(uint256)",
+                    pair.token1_address,
+                    token_id,
+                ],
                 [[fee1_name, None]],
             ),
         ]
@@ -129,7 +134,8 @@ class FeeReward(Reward):
                 continue
 
             _, token_id, pair_addr, gauge_addr, token_addr = key_name.split(
-                "|")
+                "|"
+            )
 
             reward = cls.create(
                 token_id=int(token_id),

@@ -2,7 +2,7 @@
 name = "APP"
 version = "v0.5.0"
 description = "A backend for frontend that servers data from the blockchain"
-authors = ["Velodrome Team", "Fractal Team"]
+authors = ["Velodrome Team", "Equilibre Team"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -12,7 +12,7 @@ falcon = "3.1"
 falcon-compression = "0.2.1"
 bjoern = "3.2.1"
 web3 = "5.27.0"
-multicall = { git = "https://github.com/Fractal-Dex/fractal-multicall.py" }
+multicall = { git = "https://github.com/equilibre-finance/multicall.py", tag = "v0.1.0" }
 redis = "4.2.2"
 fakeredis = "1.7.4"
 walrus = "0.9.1"
@@ -20,13 +20,16 @@ honeybadger = "0.8.0"
 python-environ = "0.4.54"
 black = "^22.8.0"
 flake8 = "^5.0.4"
+blinker = { git = "https://github.com/pallets-eco/blinker.git" }
 
 [tool.poetry.scripts]
 api-start = 'app.app:main'
-api-sync = 'app.pairs.syncer:sync_forever'
-api-sync-once = 'app.pairs.syncer:sync'
+api-sync = 'app.syncer:sync_forever'
 api-test = 'app.tests:run'
 
 [build-system]
 requires = ["poetry>=1.2.1"]
 build-backend = "poetry.masonry.api"
+
+[tool.black]
+line-length = 79
