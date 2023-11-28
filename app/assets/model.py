@@ -13,6 +13,7 @@ from app.settings import (AXELAR_BLUECHIPS_ADDRESSES, BLUECHIP_TOKEN_ADDRESSES,
                           STABLE_TOKEN_ADDRESS, TOKENLISTS)
 from multicall import Call, Multicall
 from walrus import BooleanField, FloatField, IntegerField, Model, TextField
+from web3.middleware import geth_poa_middleware
 from web3.auto import w3
 from web3.exceptions import ContractLogicError
 
@@ -44,6 +45,8 @@ class Token(Model):
         created_at (FloatField): The timestamp when the token was created.
         taxes (FloatField): The taxes associated with the token.
     """
+    
+    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
     __database__ = CACHE
     address = TextField(primary_key=True)
@@ -54,6 +57,7 @@ class Token(Model):
     price = FloatField(default=0)
     stable = BooleanField(default=False)
     liquid_staked_address = TextField()
+    
     created_at = FloatField(default=w3.eth.get_block("latest").timestamp)
     taxed = BooleanField(default=False)
     tax = FloatField(default=0)
@@ -810,7 +814,8 @@ class Token(Model):
         token.price_control = token_data.get("price_control", "")
         token.decimals = token_data.get("decimals", 18)
 
-        token._update_price()
+        #token._update_price()
+        token.price = float(1.0)
         return token
 
     def to_dict(self):
