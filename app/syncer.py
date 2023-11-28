@@ -8,7 +8,7 @@ from app.configuration import Configuration
 from app.pairs import Pairs
 from app.settings import (CACHE, LOGGER, SYNC_WAIT_SECONDS,
                           reset_multicall_pool_executor)
-from app.frac import VaraPrice
+from app.frac import FracPrice
 
 
 class Syncer:
@@ -51,8 +51,8 @@ class Syncer:
         Syncer.sync_with_cache("supply:json", "supply", CirculatingSupply.sync)
 
     @staticmethod
-    def sync_vara():
-        Syncer.sync_with_cache("vara:json", "VARA price", VaraPrice.sync)
+    def sync_frac():
+        Syncer.sync_with_cache("frac:json", "fRAC price", FracPrice.sync)
 
     @staticmethod
     def sync():
@@ -74,7 +74,7 @@ class Syncer:
         Syncer.sync_supply()
         t6 = time.time()
 
-        #Syncer.sync_vara()
+        #Syncer.sync_frac()
         #t7 = time.time()
 
         LOGGER.info("Syncing tokens data done in %s seconds.", t1 - t0)
