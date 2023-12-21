@@ -12,7 +12,7 @@ falcon = "3.1"
 falcon-compression = "0.2.1"
 bjoern = "3.2.1"
 web3 = "5.27.0"
-multicall = { git = "https://github.com/equilibre-finance/multicall.py", tag = "v0.1.0" }
+multicall = { git = "https://github.com/Fractal-Dex/fractal-multicall.py", tag = "v0.1.0" }
 redis = "4.2.2"
 fakeredis = "1.7.4"
 walrus = "0.9.1"
