@@ -503,7 +503,7 @@ web3 = "^5.27,!=5.29.*,!=5.30.*,!=5.31.*"
 type = "git"
 url = "https://github.com/Fractal-Dex/fractal-multicall.py"
 reference = "v0.1.0"
-resolved_reference = "979eb11f6eb9ff06fe97e865934ffb3a54d55c8a"
+resolved_reference = "b0a138b348d26a6a3124137aed98456c7cd36acc"
 
 [[package]]
 name = "multidict"
