@@ -5,9 +5,9 @@ from typing import Dict, Union
 
 import requests
 from app.misc import ModelUteis
-from app.settings import (AXELAR_BLUECHIPS_ADDRESSES, BLUECHIP_TOKEN_ADDRESSES,
-                          CACHE, EXTERNAL_PRICE_ORDER,
-                          GET_PRICE_INTERNAL_FIRST, IGNORED_TOKEN_ADDRESSES,
+from app.settings import (BLUECHIP_TOKEN_ADDRESSES,
+                          CACHE, 
+                          IGNORED_TOKEN_ADDRESSES,
                           INTERNAL_PRICE_ORDER, LOGGER, NATIVE_TOKEN_ADDRESS,
                           RETRY_DELAY, ROUTE_TOKEN_ADDRESSES, ROUTER_ADDRESS,
                           STABLE_TOKEN_ADDRESS, TOKENLISTS)
@@ -17,11 +17,6 @@ from web3.middleware import geth_poa_middleware
 from web3.auto import w3
 from web3.exceptions import ContractLogicError
 
-DEXSCREENER_ENDPOINT = "https://api.dexscreener.com/latest/dex/tokens/"
-DEFILLAMA_ENDPOINT = "https://coins.llama.fi/prices/current/"
-DEXGURU_ENDPOINT = "https://api.dev.dex.guru/v1/chain/10/tokens/%/market"
-DEBANK_ENDPOINT = "https://api.debank.com/history/token_price?chain=op&"
-
 MAX_RETRIES = 0
 
 
@@ -29,8 +24,7 @@ class Token(Model):
 
     """
     The Token class represents a blockchain token and provides methods to fetch
-    and update its price from various sources, both internal and external.
-    It also provides class methods to fetch token data
+    and update its price. It also provides class methods to fetch token data
     from the chain and from token lists.
 
     Attributes:
@@ -63,18 +57,8 @@ class Token(Model):
     tax = FloatField(default=0)
     price_control = TextField()
 
-    DEXSCREENER_ENDPOINT = DEXSCREENER_ENDPOINT
-    DEFILLAMA_ENDPOINT = DEFILLAMA_ENDPOINT
-    DEXGURU_ENDPOINT = DEXGURU_ENDPOINT
-    DEBANK_ENDPOINT = DEBANK_ENDPOINT
-
     ROUTE_CONFIGURATIONS = [
-        {"route_type": "direct", "method": "_get_direct_price"},
-        {
-            "route_type": "axelar_bluechips",
-            "method": "_get_price_through_tokens",
-            "token_addresses": AXELAR_BLUECHIPS_ADDRESSES,
-        },
+        {"route_type": "direct", "method": "_get_direct_price"},        
         {
             "route_type": "bluechip_tokens",
             "method": "_get_price_through_tokens",
@@ -96,48 +80,6 @@ class Token(Model):
             "token_addresses": ROUTE_TOKEN_ADDRESSES,
         },
     ]
-
-    def get_price_external_source(self):
-
-        """
-        Fetches the price of the token from external sources defined in
-        EXTERNAL_PRICE_ORDER.
-
-        It iterates over the external price getters and returns the price
-        from the first successful fetch.
-
-        Returns:
-            float: The fetched price of the token from an external source,
-            0 if all fetches fail.
-
-        Raises:
-            Exception: Any exception raised by the external price
-            getter methods.
-        """
-
-        ModelUteis.ensure_token_validity(self)
-
-        price_getters_mapping = {
-            "_get_price_from_dexscreener": self._get_price_from_dexscreener,
-            "_get_price_from_debank": self._get_price_from_debank,
-            "_get_price_from_defillama": self._get_price_from_defillama,
-            "_get_price_from_dexguru": self._get_price_from_dexguru,
-        }
-
-        for func_name in EXTERNAL_PRICE_ORDER:
-            if func_name in price_getters_mapping:
-                func = price_getters_mapping[func_name]
-                try:
-                    price = func()
-                    if price > 0:
-                        self.price = price
-                        return price
-                except Exception as e:
-                    LOGGER.error(
-                        f"Error fetching price using {func_name}: {e}"
-                    )
-
-        return 0
 
     def get_price_internal_source(self):
 
@@ -168,8 +110,10 @@ class Token(Model):
             if route_type in INTERNAL_PRICE_ORDER:
                 method_name = route_config["method"]
                 method = getattr(self, method_name)
+                print('route_config', route_config)
                 try:
                     if "token_addresses" in route_config:
+                        
                         price = method(
                             route_config["token_addresses"], stablecoin
                         )
@@ -208,6 +152,8 @@ class Token(Model):
             ContractLogicError: If there is an error in getting the chain
             price for the token.
         """
+        print('self.address', self.address)
+        print('stablecoin', stablecoin.address)
 
         try:
 
@@ -335,92 +281,21 @@ class Token(Model):
             )
             return self._finalize_update(0, start_time)
 
-        if self.price_control:
+        internal_price = self.get_price_internal_source()
 
+        if internal_price > 0:
             LOGGER.info(
-                "Token %s has price_control. Fetching price using %s",
+                "Price for %s fetched using Internal Source. Price %s",
                 self.symbol,
-                self.price_control,
+                internal_price,
             )
-
-            try:
-                if self.price_control in dir(self):
-                    self.price = getattr(self, self.price_control)()
-                    return self._finalize_update(self.price, start_time)
-                else:
-                    LOGGER.error("Error on %s has price_control", self.symbol)
-                    self.price = 0
-            except Exception as e:
-                LOGGER.error(
-                    "The function %s has error: %s",
-                    e,
-                )
-                self.price = 0
-
-        if (
-            self.address
-            in AXELAR_BLUECHIPS_ADDRESSES + BLUECHIP_TOKEN_ADDRESSES
-        ):
-            LOGGER.info(
-                "Price for %s fetched using External Source", self.symbol
-            )
-            return self._finalize_update(
-                self.get_price_external_source(), start_time
-            )
-
-        if GET_PRICE_INTERNAL_FIRST:
-            LOGGER.debug("Getting price internal first for %s", self.symbol)
-            price = self.get_price_internal_source()
-            if price > 0:
-                LOGGER.info(
-                    "Price for %s fetched using Internal Source. Price %s",
-                    self.symbol,
-                    price,
-                )
-                return self._finalize_update(price, start_time)
-            else:
-                LOGGER.info(
-                    "Price for %s fetched using External Source. Price %s",
-                    self.symbol,
-                    price,
-                )
-                return self._finalize_update(
-                    self.get_price_external_source(), start_time
-                )
-        else:
-            LOGGER.debug(
-                "Getting price internal and external for %s.", self.symbol
-            )
-
-            external_price = self.get_price_external_source()
-
-            if external_price > 0:
-                LOGGER.info(
-                    "Price for %s fetched using External Source. Price %s",
-                    self.symbol,
-                    external_price,
-                )
-                return self._finalize_update(external_price, start_time)
-
-            internal_price = self.get_price_internal_source()
-
-            if internal_price > 0:
-                LOGGER.info(
-                    "Price for %s fetched using Internal Source. Price %s",
-                    self.symbol,
-                    internal_price,
-                )
-                return self._finalize_update(internal_price, start_time)
+            return self._finalize_update(internal_price, start_time)
 
         if self.price == 0:
             LOGGER.info("Price for %s fetched using Chain Price", self.symbol)
             return self._finalize_update(
                 self.chain_price_in_liquid_staked(), start_time
             )
-
-        if self.price == 0 and self.address in AXELAR_BLUECHIPS_ADDRESSES:
-            LOGGER.info("Price for %s fetched using Chain Price", self.symbol)
-            self.price = self.temporary_price_in_bluechips()
 
         return self._finalize_update(0, start_time)
 
@@ -508,7 +383,7 @@ class Token(Model):
 
         try:
             pairs_data = requests.get(
-                "https://api.equilibrefinance.com/api/v1/pairs"
+                "https://api.fractaldex.xyz/v1/pairs"
             ).json()["data"]
         except Exception as e:
             LOGGER.error(f"Failed to fetch pair data: {e}")
@@ -532,6 +407,7 @@ class Token(Model):
             else:
                 continue
 
+            print('other_token', other_token)
             price = self._get_direct_price(Token.find(other_token["address"]))
 
             LOGGER.info(f"Saving data for token {self.symbol}: {self._data}")
@@ -567,89 +443,7 @@ class Token(Model):
         except Exception as e:
             LOGGER.error(f"Failed to fetch data for address {address}: {e}")
             return None
-
-    def _get_price_from_dexscreener(self):
-
-        try:
-            res = requests.get(self.DEXSCREENER_ENDPOINT + self.address)
-            res.raise_for_status()
-            data = res.json()
-
-            pairs = data.get("pairs")
-            if pairs is None or not isinstance(pairs, list) or len(pairs) == 0:
-                # LOGGER.warning("Unexpected struct in Dexscreener response:\
-                # 'pairs' key missing, None, or not a non-empty list.")
-                # LOGGER.debug(f"Dexscreener API Response: {data}")
-                return 0
-
-            price_data = pairs[0]
-            if price_data:
-                price_str = str(price_data.get("priceUsd", 0)).replace(",", "")
-                return float(price_str)
-            return 0
-        except (requests.RequestException, ValueError, IndexError) as e:
-            LOGGER.error("Error fetching price from Dexscreener: %s", e)
-            return 0
-
-    def _get_price_from_defillama(self) -> float:
-
-        url = self.DEFILLAMA_ENDPOINT + "kava:" + self.address.lower()
-        try:
-            res = requests.get(url)
-            res.raise_for_status()
-            data = res.json()
-
-            if "coins" not in data or not isinstance(data["coins"], dict):
-                LOGGER.error(
-                    f"Unexpected structure in DefiLlama response for token \
-                        {self.address}: 'coins' key missing or \
-                            not a dictionary."
-                )
-                return 0
-
-            coins = data["coins"]
-            for _, coin in coins.items():
-                price = coin.get("price", 0)
-                if price:
-                    return price
-
-            LOGGER.warning(
-                f"No price found in DefiLlama for token: {self.symbol}"
-            )
-            return 0
-
-        except (requests.RequestException, ValueError) as e:
-            LOGGER.error(
-                f"Error fetching price from DefiLlama for token \
-                    {self.address} using URL {url}: {e}"
-            )
-            return 0
-
-    def _get_price_from_debank(self):
-
-        try:
-            res = requests.get(
-                self.DEBANK_ENDPOINT + "token_id=" + self.address.lower()
-            )
-
-            res.raise_for_status()
-            token_data = res.json().get("data") or {}
-
-            return token_data.get("price") or 0
-        except (requests.RequestException, ValueError) as e:
-            LOGGER.error("Error fetching price from DeBank: %s", e)
-            return 0
-
-    def _get_price_from_dexguru(self):
-
-        try:
-            res = requests.get(self.DEXGURU_ENDPOINT % self.address.lower())
-            res.raise_for_status()
-            return res.json().get("price_usd", 0)
-        except (requests.RequestException, ValueError) as e:
-            LOGGER.error("Error fetching price from DexGuru: %s", e)
-            return 0
-
+   
     def _finalize_update(self, price, start_time):
 
         """Finalizes the update by setting the price and saving the token."""
@@ -678,6 +472,9 @@ class Token(Model):
                 if isinstance(address, bytes)
                 else address
             )
+            print('find:', address_str)
+            print('load', cls.load(address_str.lower()))
+            
             return (
                 cls.load(address_str.address.lower())
                 if hasattr(address_str, "address")
@@ -697,9 +494,6 @@ class Token(Model):
     def from_tokenlists(cls):
 
         our_chain_id = w3.eth.chain_id
-        print('our_chain_id', our_chain_id)
-        
-        
         all_tokens = cls._fetch_all_tokens(our_chain_id)
 
         return all_tokens

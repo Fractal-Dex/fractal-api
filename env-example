@@ -1,34 +1,80 @@
-# Webserver config
+# ========================
+# Webserver Configuration
+# ========================
 PORT=8002
-
-# Databases config
-REDIS_URL=redis://fractal-redis/0
-
-# Web3
-WEB3_PROVIDER_URI=https://opbnb-testnet.nodereal.io/v1/e9a36765eb8a40b9bd12e680a1fd2bc5
-
-# Addresses
-ROUTER_ADDRESS=0x7D58DA6719e575e9EC8e50E249352554829aA905
-FACTORY_ADDRESS=0x09a9C738dB0BA3E47D21d43d23de606666009066
-VOTER_ADDRESS=0x27Fc6568F19b30210d24d49220554A5b22b17e2F
-VE_ADDRESS=0x91889E54782d325a6f575632AEE054C0CaBFA502
-REWARDS_DIST_ADDRESS=0x66B4a56177E1971Fd41180677B9A1ecBCfa63a0a
-WRAPPED_BRIBE_FACTORY_ADDRESS=0xBA1433b57bE2fdB10a794878Be57210c1ad28441
-TOKENLISTS=https://raw.githubusercontent.com/Fractal-Dex/fractal-tokens/main/list.json
-DEFAULT_TOKEN_ADDRESS=0x1D7307c0F283Fd5F98fE84290cA7f3433cc94035
-STABLE_TOKEN_ADDRESS=0x6182A5E3165E3DCF7F645136a3C7369DE2e7C5ee
-# These will be used for multi-hop swaps, comma-separated addresses (TOKEN, USDC, wopBNB)
-#WETH=0x4200000000000000000000000000000000000006
-WETH=0x07D91f7623DA4674b81B9811551DB4B4F8AbeA72
-USDC=0x6182A5E3165E3DCF7F645136a3C7369DE2e7C5ee
-ROUTE_TOKEN_ADDRESSES=0x1D7307c0F283Fd5F98fE84290cA7f3433cc94035,0x6182A5E3165E3DCF7F645136a3C7369DE2e7C5ee,0x07D91f7623DA4674b81B9811551DB4B4F8AbeA72
-IGNORED_TOKEN_ADDRESSES=0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000
-
-# Syncing config
-
-## Seconds between on-chain syncups
-SYNC_WAIT_SECONDS=20
-
 CORS_ALLOWED_DOMAINS="*"
 
-TREASURY_ADDRESS=0xb8e476D9719159CAe682B91354E1ffA8d2F804e3
+# ========================
+# Database Configuration
+# ========================
+REDIS_URL=redis://fractal-redis/0
+TOKEN_CACHE_EXPIRATION=3600
+PAIR_CACHE_EXPIRATION=3600
+FRAC_CACHE_EXPIRATION=3600
+SUPPLY_CACHE_EXPIRATION=3600  
+
+
+# ========================
+# Web3 Configuration
+# ========================
+WEB3_PROVIDER_URI=https://data-seed-prebsc-2-s1.binance.org:8545/
+
+# ========================
+# Token Configuration
+# ========================
+# List of our tokens
+TOKENLISTS=https://raw.githubusercontent.com/Fractal-Dex/fractal-tokens/main/list.json
+
+# Tokens to be ignored. Can be a token or NFT
+IGNORED_TOKEN_ADDRESSES=0x9d8054aaf108a5b5fb9fe27f89f3db11e82fc94f,0x31f8d38df6514b6cc3c360ace3a2efa7496214f6
+
+# ========================
+# Address Configuration
+# ========================
+# Various contract addresses used in the application
+ROUTER_ADDRESS=0x46e82CA88d3138Ba02E5f27913DFaD6C5f092465
+FACTORY_ADDRESS=0x3acbfFb56Ac926D61B6Bc856e285c0408CfdbCa6
+VOTER_ADDRESS=0xccD96AF7b3346290c07b9c1Cee5F89A3323347C1
+GAUGE_ADDRESS=0xDaEC8A846296Fbd8F757e77AB14c56B61bD20e2f 
+VE_ADDRESS=0xCf47683cFa8253972d6e1d115489f42f10E29998
+REWARDS_DIST_ADDRESS=0x9776D16Ff0f08225D317E23Ae92D35fA025F0e79
+WRAPPED_BRIBE_FACTORY_ADDRESS=0x39fd5384AD92ECBaa13015e9383BBA7325EB2EfF
+TREASURY_ADDRESS=0x116F80Be889cf7A17629E7BB27b3cDA7cD9B74B3                
+DEFAULT_TOKEN_ADDRESS=0x116F80Be889cf7A17629E7BB27b3cDA7cD9B74B3           
+NATIVE_TOKEN_ADDRESS=0xc86c7c0efbd6a49b35e8714c5f59d99de09a225b            
+STABLE_TOKEN_ADDRESS=0xf81d78e2ea9066ae008b8559c062b958df2104be
+
+ROUTE_TOKEN_ADDRESSES=0xc86c7c0efbd6a49b35e8714c5f59d99de09a225b,0xf81d78e2ea9066ae008b8559c062b958df2104be,0x116F80Be889cf7A17629E7BB27b3cDA7cD9B74B3
+
+
+# ========================
+# Price Feed Configuration
+# ========================
+# Control the price feed order
+INTERNAL_PRICE_ORDER=direct,native_token,stable_token,bluechip_tokens,axelar_bluechips,route_token,chain_price_in_pairs
+
+# Bluechips - wBTC, wETH, wBNB  
+BLUECHIP_TOKEN_ADDRESSES=0xa9ad1484d9bfb27adbc2bf50a6e495777cc8cff2,0x7c8fdac47e9118311ef225c02ed8ca26a88650a4,0xf0b4a48860434a386489eb07900a2fd20b5f45eb
+
+# ========================
+# Syncing Configuration
+# ========================
+# Seconds between on-chain syncups
+SYNC_WAIT_SECONDS=20
+RETRY_DELAY=3
+RETRY_COUNT=3
+
+# ========================
+# Logging Configuration
+# ========================
+LOG_VERBOSE=DEBUG
+LOG_SAVE=0
+
+# ========================
+# Miscellaneous
+# ========================
+# Default Decimal for tokens
+DEFAULT_DECIMAL=18
+
+# Check prices internal first
+GET_PRICE_INTERNAL_FIRST=True

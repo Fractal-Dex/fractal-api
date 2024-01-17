@@ -63,9 +63,6 @@ SPECIAL_TOKENS = env("SPECIAL_TOKENS", default="").lower().split(",")
 BLUECHIP_TOKEN_ADDRESSES = (
     env("BLUECHIP_TOKEN_ADDRESSES", default="").lower().split(",")
 )
-AXELAR_BLUECHIPS_ADDRESSES = (
-    env("AXELAR_BLUECHIPS_ADDRESSES", default="").lower().split(",")
-)
 RETRY_DELAY = env("RETRY_DELAY", default=10)
 
 RETRY_COUNT = env("RETRY_COUNT", default=3)
