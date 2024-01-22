@@ -27,8 +27,10 @@ class Gauge(Model):
     DAY_IN_SECONDS = 24 * 60 * 60
     CACHER = CACHE.cache()
 
+
     address = TextField(primary_key=True)
-    decimals = IntegerField(default=DEFAULT_DECIMALS)
+    #decimals = IntegerField(default=DEFAULT_DECIMALS)
+    decimals = IntegerField(18)
     total_supply = FloatField()
     bribe_address = TextField(index=True)
     fees_address = TextField(index=True)
@@ -96,20 +98,22 @@ class Gauge(Model):
                 ]
             )()
             data.update(data_calls)
-
+            
             if not data.get("isAlive"):
                 LOGGER.warning(f"Gauge {address} is not Alive.")
                 return None
 
-            data["total_supply"] = data["total_supply"] / cls.DEFAULT_DECIMALS
+            data["total_supply"] = data["total_supply"] / 18
 
             token = Token.find(DEFAULT_TOKEN_ADDRESS)
             if token:
-                try:
-                    if data.get("reward_rate") is not None:
+                try:                   
+                    rewards_rate = data.get("reward_rate")
+                    
+                    if rewards_rate != 0 and rewards_rate is not None:
                         data["reward"] = (
-                            data["reward_rate"]
-                            / 10**token.decimals
+                            data.get("reward_rate", 0)
+                            / 10**(token.decimals if hasattr(token, 'decimals') else 18)
                             * cls.DAY_IN_SECONDS
                         )
                     else:
@@ -205,6 +209,7 @@ class Gauge(Model):
         """Update the APR for the gauge."""
 
         try:
+            import math
             from app.pairs.model import Pair
 
             pair = Pair.get(Pair.gauge_address == gauge.address)
@@ -213,10 +218,10 @@ class Gauge(Model):
             )()
 
             token = Token.find(DEFAULT_TOKEN_ADDRESS)
-            votes = votes / 10**token.decimals
+            votes = votes / math.pow(10, token.decimals)
 
             gauge.apr = cls.rebase_apr()
-            if token.price and votes * token.price > 0:
+            if token.price is not None and votes * token.price > 0:
                 gauge.votes = votes
                 gauge.apr += ((gauge.tbv * 52) / (votes * token.price)) * 100
                 gauge.save()
@@ -271,7 +276,7 @@ class Gauge(Model):
 
                 if token is not None:
 
-                    token_bribes = amount / 10**token.decimals
+                    token_bribes = amount / 10**(token.decimals or 18)
                     gauge.rewards[token.address] = token_bribes
                     gauge.total_bribes += token_bribes
 
@@ -282,7 +287,7 @@ class Gauge(Model):
                         token_bribes,
                     )
 
-                    if token.price:
+                    if token.price and token_bribes * token.price > 0:
                         gauge.tbv += token_bribes * token.price
 
             gauge.save()

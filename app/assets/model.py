@@ -281,7 +281,8 @@ class Token(Model):
             )
             return self._finalize_update(0, start_time)
 
-        internal_price = self.get_price_internal_source()
+        #internal_price = self.get_price_internal_source()
+        internal_price = float(1.0)
 
         if internal_price > 0:
             LOGGER.info(
@@ -472,9 +473,7 @@ class Token(Model):
                 if isinstance(address, bytes)
                 else address
             )
-            print('find:', address_str)
-            print('load', cls.load(address_str.lower()))
-            
+           
             return (
                 cls.load(address_str.address.lower())
                 if hasattr(address_str, "address")
@@ -606,10 +605,15 @@ class Token(Model):
         )
         token.tax = token_data.get("tax", False)
         token.price_control = token_data.get("price_control", "")
-        token.decimals = token_data.get("decimals", 18)
+        #token.decimals = token_data.get("decimals", 18)
 
-        #token._update_price()
-        token.price = float(1.0)
+        token._update_price()
+        #token.price = float(1.0)
+        token.decimals = 18
+        
+        
+        print('Criando token: ', token.symbol, token.price)
+        
         return token
 
     def to_dict(self):

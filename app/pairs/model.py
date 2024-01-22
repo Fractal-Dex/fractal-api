@@ -133,13 +133,20 @@ class Pair(Model):
             if data["total_supply"] > 0:
                 data["total_supply"] = data["total_supply"] / (10 ** data["decimals"])
 
-            token0 = Token.find(data["token0_address"])
+            token0 = Token.find(data["token0_address"])            
             token1 = Token.find(data["token1_address"])
+            
+            token0.decimals = 18
+            token1.decimals = 18
+                 
 
             if token0 and token1:
                 if data["reserve0"] >= 0 and data["reserve1"] >= 0:
                     data["reserve0"] = data["reserve0"] / (10 ** token0.decimals) if token0.decimals else 0
                     data["reserve1"] = data["reserve1"] / (10 ** token1.decimals) if token1.decimals else 0
+
+                    LOGGER.debug("Updated reserve0: %s", data["reserve0"])
+                    LOGGER.debug("Updated reserve1: %s", data["reserve1"])
                 else:
                     data["reserve0"] = 0
                     data["reserve1"] = 0
@@ -152,7 +159,7 @@ class Pair(Model):
             data["tvl"] = cls._tvl(data, token0, token1)
             data["isStable"] = data["stable"]
             data["totalSupply"] = data["total_supply"]
-
+            
             cls.query_delete(cls.address == address.lower())
 
             pair = cls.create(**data)
@@ -167,7 +174,7 @@ class Pair(Model):
             return None
 
     @classmethod
-    def _tvl(cls, pool_data, token0, token1):
+    def _tvl(cls, pool_data: dict, token0: Token, token1: Token) -> float:
         try:
             tvl = 0
 
@@ -177,7 +184,7 @@ class Pair(Model):
             if token1 and token1.price:
                 tvl += pool_data["reserve1"] * token1.price
 
-            if token0 and token1 and tvl != 0 and (token0.price == 0 or token1.price == 0):
+            if tvl != 0 and (token0.price == 0 or token1.price == 0):
                 LOGGER.debug(
                     f"Pool {cls.__name__}:({pool_data['symbol']}) has a price of 0 for one of its tokens."
                 )
